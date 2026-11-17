@@ -112,9 +112,22 @@ fi
 # --- Skill installs -----------------------------------------------------
 printf '\n## REA skill installs\n\n'
 printf '| Path | Version | Tools |\n| --- | --- | --- |\n'
-find "$HOME/.agents" "$HOME/.claude" "$HOME/AppData/Local/hermes/skills" \
-     -path '*reverse-engineer-anything/SKILL.md' 2>/dev/null | while read -r f; do
-  v="$(sed -n 's/^  version: *"\(.*\)"/\1/p' "$f" 2>/dev/null | head -n1)"
-  t="$(sed -n 's/^  tool_count: *\(.*\)/\1/p' "$f" 2>/dev/null | head -n1)"
-  printf '| `%s` | %s | %s |\n' "$f" "${v:-?}" "${t:-?}"
+# Only pass directories that exist: `find` exits non-zero for a missing path,
+# and `set -o pipefail` would then abort the whole report on a host that has
+# just one of these harnesses installed.
+SKILL_ROOTS=()
+for d in "$HOME/.agents" "$HOME/.claude" "$HOME/AppData/Local/hermes/skills"; do
+  [ -d "$d" ] && SKILL_ROOTS+=("$d")
 done
+if [ "${#SKILL_ROOTS[@]}" -gt 0 ]; then
+  find "${SKILL_ROOTS[@]}" -path '*reverse-engineer-anything/SKILL.md' 2>/dev/null \
+    | while read -r f; do
+        v="$(sed -n 's/^  version: *"\(.*\)"/\1/p' "$f" 2>/dev/null | head -n1)"
+        t="$(sed -n 's/^  tool_count: *\(.*\)/\1/p' "$f" 2>/dev/null | head -n1)"
+        printf '| `%s` | %s | %s |\n' "$f" "${v:-?}" "${t:-?}"
+      done
+else
+  printf '| _none found_ | - | - |\n'
+fi
+
+exit 0
