@@ -89,7 +89,8 @@ else
   # Write exact bytes with node rather than shell escapes: hex -> binary is
   # where this kind of fixture usually goes wrong, and node is already required.
   check_magic() {
-    local label="$1" hex="$2" want="$3" file="$TMP/magic-$want.bin"
+    local label="$1" hex="$2" want="$3"
+    local file="$TMP/magic-$want.bin"
     node -e 'require("fs").writeFileSync(process.argv[1],Buffer.from(process.argv[2],"hex"))' "$file" "$hex" 2>/dev/null
     local got
     got="$(node "$ROOT/scripts/lib/detect.mjs" "$file" 2>/dev/null | node -e '

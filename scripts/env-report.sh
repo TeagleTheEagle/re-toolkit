@@ -66,9 +66,11 @@ for t in r2 radare2 rizin rz-bin cutter; do
   if have "$t"; then row "$t" "yes" "\`$(ver $t)\`"; else row "$t" "no" "-"; fi
 done
 
-for t in openssl; do
-  if have "$t"; then row "$t" "yes" "\`$(ver openssl)\`"; else row "$t" "no" "-"; fi
-done
+if have openssl; then
+  row "openssl" "yes" "\`$(ver openssl)\`"
+else
+  row "openssl" "no" "-"
+fi
 
 for t in binwalk docker tshark wireshark tcpdump; do
   if have "$t"; then row "$t" "yes" "\`$(ver $t)\`"; else row "$t" "no" "-"; fi
