@@ -1,0 +1,22 @@
+{
+  "profile": "standard",
+  "grep": [
+    "password",
+    "secret",
+    "token",
+    "api",
+    "http://",
+    "https://",
+    "wss://",
+    "localhost",
+    "127.0.0.1",
+    "update",
+    "telemetry",
+    "analytics"
+  ],
+  "extra": ["inspect-artifact", "inspect-binary-hardening"],
+  "timeoutSeconds": 1800,
+  "decompileAll": false,
+  "allowExec": false,
+  "reportFormats": "json,md"
+}

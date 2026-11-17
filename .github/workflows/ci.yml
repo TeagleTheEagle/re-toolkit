@@ -1,0 +1,129 @@
+name: RE Toolkit CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Toolkit tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install binutils (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y binutils file
+
+      - name: Install binutils (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # MSYS2 provides file/strings/objdump/nm; Git Bash already bundles most.
+          choco install -y mingw > $null 2>&1 || true
+
+      - name: Script syntax
+        shell: bash
+        run: |
+          for f in scripts/*.sh tests/*.sh; do bash -n "$f" || exit 1; done
+          for f in scripts/lib/*.mjs; do node --check "$f" || exit 1; done
+
+      - name: Run test suite
+        shell: bash
+        # --fast skips the pipeline run that needs REA/Ghidra, which is not
+        # installed on hosted runners. The rest (detection, reporting, markdown,
+        # error handling) is fully exercised there.
+        run: bash tests/test-toolkit.sh --fast
+
+      - name: Pipeline smoke test (Linux, no engine)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          printf '%s\n' '#include <stdio.h>' 'int main(void){return 0;}' > /tmp/t.c
+          cc -o /tmp/t.bin /tmp/t.c
+          bash scripts/re-analyze.sh --profile quick --out /tmp/out /tmp/t.bin
+          test -f /tmp/out/report.md
+          test -f /tmp/out/summary.json
+
+  docs:
+    name: Build PDF documentation
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pandoc and LaTeX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc texlive-xetex texlive-fonts-recommended
+
+      - name: Regenerate the command catalog
+        run: node scripts/lib/catalog.mjs docs/rea-command-catalog.md || echo "REA not present; catalog left as-is"
+
+      - name: Build PDFs
+        run: bash scripts/build-docs.sh
+
+      - name: Upload PDFs
+        uses: actions/upload-artifact@v4
+        with:
+          name: re-toolkit-docs
+          path: docs/dist/*.pdf
+          if-no-files-found: error
+
+      - name: Verify PDFs are non-trivial
+        run: |
+          for f in docs/dist/*.pdf; do
+            size=$(wc -c < "$f")
+            echo "$f: $size bytes"
+            if [ "$size" -lt 5000 ]; then echo "PDF too small: $f"; exit 1; fi
+          done
+
+  catalog-drift:
+    name: Catalog is current
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install the engine
+        run: npm i -g rea-agents
+      - name: Regenerate and compare
+        run: |
+          cp docs/rea-command-catalog.md /tmp/committed.md
+          node scripts/lib/catalog.mjs docs/rea-command-catalog.md
+          if ! diff -q /tmp/committed.md docs/rea-command-catalog.md >/dev/null; then
+            echo "::warning::docs/rea-command-catalog.md is stale against the installed engine"
+            diff -u /tmp/committed.md docs/rea-command-catalog.md | head -40 || true
+          fi
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: ./scripts
+          severity: warning
+          ignore_paths: >-
+            scripts/lib

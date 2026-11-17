@@ -1,0 +1,22 @@
+{
+  "profile": "standard",
+  "grep": [
+    "/bin/sh",
+    "system(",
+    "popen(",
+    "execve",
+    "http://",
+    "https://",
+    "PRIVATE KEY",
+    "password",
+    "token",
+    "LD_PRELOAD",
+    "chmod +s",
+    "setuid"
+  ],
+  "extra": ["inspect-binary-hardening", "inspect-elf-notes"],
+  "timeoutSeconds": 1200,
+  "decompileAll": false,
+  "allowExec": false,
+  "reportFormats": "json,md"
+}

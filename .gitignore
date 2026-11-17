@@ -1,0 +1,17 @@
+# analysis output
+*_analysis/
+lab-results/
+*.log
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# editor
+.vscode/
+.idea/
+
+# Built PDFs ARE committed: they are the deliverable, and the wiki links to
+# them. Rebuild with scripts/build-docs.sh; CI verifies they are non-trivial.
+# (docs/dist/ is intentionally not ignored.)
