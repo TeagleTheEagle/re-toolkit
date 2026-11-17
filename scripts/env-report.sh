@@ -3,14 +3,13 @@
 # env-report.sh — report which reverse-engineering capabilities this machine
 # actually has, and what each one costs.
 #
-#   ./env-report.sh [--json]
+#   ./env-report.sh
 #
 # Every line is measured on the local machine at run time. Nothing is assumed.
+# Output is markdown so it can be pasted into a report or a wiki page; there is
+# deliberately no JSON mode.
 
 set -uo pipefail
-
-JSON_OUT=0
-[ "${1:-}" = "--json" ] && JSON_OUT=1
 
 have() { command -v "$1" >/dev/null 2>&1; }
 ver()  { "$1" --version 2>/dev/null | head -n 1; }
@@ -103,8 +102,8 @@ if [ -f "$CHROME" ]; then row "headless browser" "yes" "Chrome (PDF export avail
 
 # --- REA's own tool directories ----------------------------------------
 if [ -d "$HOME/rea-tools" ]; then
-  for d in "$HOME"/rea-tools/*/; do
-    [ -d "$d" ] && row "rea-tools" "yes" "$(basename "$d")"
+  find "$HOME/rea-tools" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort | while read -r d; do
+    row "rea-tools" "yes" "$(basename "$d")"
   done
 fi
 

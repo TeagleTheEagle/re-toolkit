@@ -30,7 +30,6 @@ LIB_DIR="$SCRIPT_DIR/lib"
 PROFILE="standard"
 OUT_DIR=""
 TARGET=""
-FORMAT="both"          # json | md | both
 KIND="auto"            # auto | force a kind
 CONFIG=""
 ALLOW_EXEC=0
@@ -40,7 +39,6 @@ TIMEOUT_SECS=900
 EXTRA_COMMANDS=""
 STEP_FILTER=""
 GREP_PATTERNS=""
-REPORT_FORMATS="json,md"
 
 usage() {
   cat <<'EOF'
@@ -55,7 +53,6 @@ OPTIONS
       standard detection + overview + all kind-specific inspections
       deep     standard + decompile-all + string triage + optional gdb
   --out <dir>        Output directory (default: ./<target>_analysis)
-  --format <json|md|both>  Summary output (default: both)
   --config <file>    JSON config file (see docs/RE-Cookbook.md)
   --kind <kind>      Force target kind instead of auto-detection
   --step <regex>     Only run steps whose name matches this regex
@@ -80,7 +77,6 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --profile) PROFILE="${2:-}"; shift 2 ;;
     --out) OUT_DIR="${2:-}"; shift 2 ;;
-    --format) FORMAT="${2:-}"; shift 2 ;;
     --config) CONFIG="${2:-}"; shift 2 ;;
     --kind) KIND="${2:-}"; shift 2 ;;
     --step) STEP_FILTER="${2:-}"; shift 2 ;;
@@ -115,7 +111,6 @@ if [ -n "$CONFIG" ]; then
       timeoutSeconds: pick("timeoutSeconds", 0),
       decompileAll: pick("decompileAll", false),
       allowExec: pick("allowExec", false),
-      reportFormats: pick("reportFormats", "")
     };
     process.stdout.write(JSON.stringify(out));
   ' "$CONFIG")" || { echo "invalid config JSON: $CONFIG" >&2; exit 2; }
@@ -128,7 +123,6 @@ if [ -n "$CONFIG" ]; then
   [ -n "$(get extra)" ] && EXTRA_COMMANDS="$EXTRA_COMMANDS,$(get extra)"
   [ -n "$(get grep)" ] && GREP_PATTERNS="${GREP_PATTERNS:+$GREP_PATTERNS,}$(get grep)"
   [ -n "$(get timeoutSeconds)" ] && TIMEOUT_SECS="$(get timeoutSeconds)"
-  [ -n "$(get reportFormats)" ] && REPORT_FORMATS="$(get reportFormats)"
   [ "$(get decompileAll)" = "true" ] && DECOMPILE_ALL=1
   [ "$(get allowExec)" = "true" ] && ALLOW_EXEC=1
 fi

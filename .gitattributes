@@ -1,0 +1,11 @@
+# Shell scripts and JavaScript must be LF even on a Windows checkout: a CRLF
+# shebang line makes the script unrunnable on Linux and macOS.
+*.sh   text eol=lf
+*.mjs  text eol=lf
+*.js   text eol=lf
+*.yml  text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+
+# PDFs are binary; never touch them.
+*.pdf  binary

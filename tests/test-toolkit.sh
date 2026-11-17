@@ -62,12 +62,48 @@ else
     kind="$(node -e 'process.stdout.write(require(process.argv[1]).kind)' "$TMP/detect.json")"
     arch="$(node -e 'process.stdout.write(require(process.argv[1]).architecture)' "$TMP/detect.json")"
     sha="$(node -e 'process.stdout.write(require(process.argv[1]).sha256)' "$TMP/detect.json")"
-    [ "$kind" = "pe" ] && pass "kind=pe detected" || fail "kind=pe detected" "got '$kind'"
+
+    # The compiler decides the container format, not the filename: gcc on Linux
+    # emits ELF even for an output called .exe. Assert that detection agrees
+    # with the bytes on disk rather than with the extension.
+    expected="$(head -c 4 "$FIXTURE" | od -An -tx1 | tr -d ' 
+')"
+    case "$expected" in
+      7f454c46) want="elf" ;;
+      4d5a*)    want="pe" ;;
+      *)        want="" ;;
+    esac
+    if [ -n "$want" ]; then
+      [ "$kind" = "$want" ] && pass "kind matches the file signature ($want)"         || fail "kind matches the file signature ($want)" "got '$kind'"
+    else
+      skip "kind matches the file signature" "unrecognised fixture magic: $expected"
+    fi
     [ "$arch" = "x86_64" ] && pass "arch=x86_64 detected" || fail "arch=x86_64 detected" "got '$arch'"
     [ "${#sha}" -eq 64 ] && pass "sha256 is 64 hex chars" || fail "sha256 is 64 hex chars" "got '$sha'"
   else
     fail "detect.mjs ran" "$(head -2 "$TMP/detect.err")"
   fi
+
+  # Deterministic magic-byte cases: these do not depend on the host compiler,
+  # so PE/Mach-O/WASM coverage exists even on a Linux runner.
+  # Write exact bytes with node rather than shell escapes: hex -> binary is
+  # where this kind of fixture usually goes wrong, and node is already required.
+  check_magic() {
+    local label="$1" hex="$2" want="$3" file="$TMP/magic-$want.bin"
+    node -e 'require("fs").writeFileSync(process.argv[1],Buffer.from(process.argv[2],"hex"))' "$file" "$hex" 2>/dev/null
+    local got
+    got="$(node "$ROOT/scripts/lib/detect.mjs" "$file" 2>/dev/null | node -e '
+      let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+        try { process.stdout.write(JSON.parse(s).kind) } catch(e) { process.stdout.write("error") }
+      });')"
+    [ "$got" = "$want" ] && pass "$label" || fail "$label" "got '$got', wanted '$want'"
+  }
+
+  check_magic "PE signature detected from magic bytes"   "4d5a90000300000004000000ffff0000b8000000000000004000000000000000" "pe"
+  check_magic "Mach-O 64 signature detected"             "cffaedfe070000010300008002000000" "macho"
+  check_magic "WASM signature detected"                  "0061736d01000000" "wasm"
+  check_magic "gzip signature detected"                  "1f8b0800000000000003" "archive"
+  check_magic "PNG signature detected"                   "89504e470d0a1a0a" "image"
 
   # Non-PE inputs must not be misclassified.
   printf '\x7fELF\x02\x01\x01\x00' > "$TMP/fake.elf"
